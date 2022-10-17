@@ -1,3 +1,9 @@
+## task-vix-btpns
+
+> This project under maintenance until 30 October 2022
+
+Virtual Intern project assignments using Go language. This Virtual Internship aims to learn about how a Full Stack Developer at Bank BTPN Syariah
+
 ## Project Layout
 
 ```text
