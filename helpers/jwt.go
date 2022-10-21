@@ -1,36 +1,65 @@
 package helpers
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func GenerateToken(userID int) (string, error) {
-	claim := jwt.MapClaims{}
-	claim["user_id"] = userID
+// Claims is an alias for MapClaims
+type Claims = jwt.MapClaims
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
-	signedToken, err := token.SignedString([]byte(GetEnv("JWT_SECRET_KEY")))
-	if err != nil {
-		return signedToken, err
-	}
+// StandardClaims wraps jwt standard claims type
+type StandardClaims jwt.StandardClaims
 
-	return signedToken, nil
+// NewClaims create a Claims type
+func NewClaims(data map[string]interface{}) Claims {
+	newClaims := Claims(data)
+	return newClaims
 }
 
-func ValidateToken(encodedToken string) (*jwt.Token, error) {
-	token, err := jwt.Parse(encodedToken, func(token *jwt.Token) (interface{}, error) {
-		_, ok := token.Method.(*jwt.SigningMethodHMAC)
-		if !ok {
-			return nil, errors.New("invalid token")
+// ParseJWT parses a JWT and returns Claims object
+// Claims can be access using index notation such as claims["foo"]
+func ParseJWT(tokenString string, key string) (Claims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(key), nil
+	})
+
+	if token.Valid {
+		if claims, ok := token.Claims.(Claims); ok {
+			return claims, nil
 		}
 
-		return []byte(GetEnv("JWT_SECRET_KEY")), nil
-	})
+		return nil, err
+	} else if ve, ok := err.(*jwt.ValidationError); ok {
+		if ve.Errors&jwt.ValidationErrorMalformed != 0 {
+			return nil, err
+		} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
+			// Token is either expired or not active yet
+			return nil, err
+		} else {
+			return nil, err
+		}
+	} else {
+		return nil, err
+	}
+}
+
+// EncodeJWT serialize data into a jwt token using a secret
+// This secret must match with the client's secret who's generating the token
+func EncodeJWT(secretKey string, claims Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	secret := []byte(secretKey)
+	tokenString, err := token.SignedString(secret)
+
 	if err != nil {
-		return token, err
+		return "", err
 	}
 
-	return token, nil
+	return tokenString, nil
 }

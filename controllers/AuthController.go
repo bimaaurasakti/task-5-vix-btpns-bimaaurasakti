@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	userApp "vix-btpns/app/user"
 	"vix-btpns/helpers"
@@ -56,7 +59,19 @@ func (h *authController) Register(c *gin.Context) {
 	}
 
 	// Generate token
-	token, err := helpers.GenerateToken(int(user.ID))
+	byteUserID := []byte(strconv.FormatUint(uint64(user.ID), 10))
+	encryptedUserID, err := helpers.Encrypt(byteUserID)
+	if err != nil {
+		response := helpers.APIResponse("failed to create account", http.StatusBadRequest, "error", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	encodedUserID := base64.StdEncoding.EncodeToString(encryptedUserID)
+	claims := helpers.NewClaims(map[string]interface{}{
+		"user_id": encodedUserID,
+	})
+	token, err := helpers.EncodeJWT(helpers.GetEnv("JWT_SECRET_KEY"), claims)
 	if err != nil {
 		response := helpers.APIResponse("failed to create account", http.StatusBadRequest, "error", nil)
 		c.JSON(http.StatusBadRequest, response)
@@ -109,9 +124,21 @@ func (h *authController) Login(c *gin.Context) {
 	}
 
 	// Generate token
-	token, err := helpers.GenerateToken(int(user.ID))
+	byteUserID := []byte(strconv.FormatUint(uint64(user.ID), 10))
+	encryptedUserID, err := helpers.Encrypt(byteUserID)
 	if err != nil {
-		response := helpers.APIResponse("login failed", http.StatusBadRequest, "error", nil)
+		response := helpers.APIResponse("login failed", http.StatusBadRequest, "error", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	encodedUserID := base64.StdEncoding.EncodeToString(encryptedUserID)
+	claims := helpers.NewClaims(map[string]interface{}{
+		"user_id": encodedUserID,
+	})
+	token, err := helpers.EncodeJWT(helpers.GetEnv("JWT_SECRET_KEY"), claims)
+	if err != nil {
+		response := helpers.APIResponse("generate token failed", http.StatusBadRequest, "error", err.Error())
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
