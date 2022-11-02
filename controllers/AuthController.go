@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	userApp "vix-btpns/app/user"
 	"vix-btpns/helpers"
@@ -69,7 +69,9 @@ func (h *authController) Register(c *gin.Context) {
 
 	encodedUserID := base64.StdEncoding.EncodeToString(encryptedUserID)
 	claims := helpers.NewClaims(map[string]interface{}{
-		"user_id": encodedUserID,
+		"iat": time.Now().Unix(),
+		"exp": time.Now().Add(1 * time.Hour).Unix(),
+		"sub": encodedUserID,
 	})
 	token, err := helpers.EncodeJWT(helpers.GetEnv("JWT_SECRET_KEY"), claims)
 	if err != nil {
@@ -134,7 +136,9 @@ func (h *authController) Login(c *gin.Context) {
 
 	encodedUserID := base64.StdEncoding.EncodeToString(encryptedUserID)
 	claims := helpers.NewClaims(map[string]interface{}{
-		"user_id": encodedUserID,
+		"iat": time.Now().Unix(),
+		"exp": time.Now().Add(1 * time.Hour).Unix(),
+		"sub": encodedUserID,
 	})
 	token, err := helpers.EncodeJWT(helpers.GetEnv("JWT_SECRET_KEY"), claims)
 	if err != nil {

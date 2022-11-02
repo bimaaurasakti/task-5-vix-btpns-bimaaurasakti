@@ -22,7 +22,7 @@ func AuthMiddleware(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		encodedUserID := claim["user_id"].(string)
+		encodedUserID := claim["sub"].(string)
 		decodeUserID, _ := base64.StdEncoding.DecodeString(encodedUserID)
 		if err != nil {
 			response := helpers.APIResponse("unauthorized token", http.StatusUnauthorized, "error", err.Error())
